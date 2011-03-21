@@ -101,8 +101,6 @@ void create_service(AvahiClient * c)
             avahi_simple_poll_quit(sp);
             return;
         }
-    } else {
-        serv();
     }
 }
 
@@ -126,15 +124,14 @@ void client_callback(AvahiClient * c, AvahiClientState s, void *userdata)
     }
 }
 
-static void set(char b1, char b2, char b3)
+static void set(int b1, int b2, int b3)
 {
-    fprintf(stderr, "set to %x %x %x\n", b1, b2, b3);
+    fprintf(stderr, "set to %02x %02x %02x\n", b1, b2, b3);
 }
 
-static void fade(char b1, char b2, char b3, char b4)
+static void fade(int b1, int b2, int b3, unsigned long ms)
 {
-    fprintf(stderr, "fade to %x %x %x in %ds\n", b1 & 0xFF, b2 & 0xFF,
-            b3 & 0xFF, b4);
+    fprintf(stderr, "fade to %02x %02x %02x in %ldms\n", b1, b2, b3, ms);
 }
 
 static int serv(void)
@@ -158,31 +155,45 @@ static int serv(void)
         fprintf(stderr, "cannot bind");
         return -1;
     }
+
     while (1) {
         char command[6];
-        fprintf(stderr, "wait..\n");
-        if (recvfrom
-            (sock, &command, 6, 0, (struct sockaddr *) &caddr,
-             &caddrlen) < 6) {
+        int numbs[6];
+        ssize_t s;
+
+        memset(&command, 0, sizeof(command));
+        if ((s = recvfrom
+             (sock, &command, 6, 0, (struct sockaddr *) &caddr,
+              &caddrlen)) < 4) {
 
             fprintf(stderr, "not a ASCII moodlamp command");
             continue;
         }
+
+        for (int i = 0; i < 6; i++) {
+            numbs[i] = command[i] & 0xFF;
+        }
+
+        /* RECEIVED PACKET, LET'S SEE WHAT WE'VE GOT */
         switch (command[0]) {
         case 'C':
-            set(command[1], command[2], command[3]);
+            set(numbs[1], numbs[2], numbs[3]);
             break;
         case 'F':
         case 'M':
         case 'T':
-            fade(command[1], command[2], command[3], command[5]);
+            if (s >= 6) {
+                unsigned long time = 0;
+                time = command[4] << 8;
+                time += command[5] && 0xFF;
+                fade(numbs[1], numbs[2], numbs[3], time);
+            } else {
+                fprintf(stderr, "not a ASCII moodlamp command");
+            }
             break;
         default:
             fprintf(stderr, "not a ASCII moodlamp command");
         }
-
-        fprintf(stderr, "receive\n");
-
     }
 
     close(sock);
