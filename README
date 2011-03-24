@@ -1,7 +1,6 @@
 Simple server that implements the uberbus UDP protocol and simulates a connected
 moodlamp. Helpful to debug client uberbus applications.
 
-Not Implemented
----------------
-IPv4 (debugsrv only supports IPv6 at the moment)
-TCP (only UDP is supported)
+Bugs
+----
+TCP support is not fully functional yet
